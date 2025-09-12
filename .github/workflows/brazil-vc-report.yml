@@ -1,0 +1,33 @@
+name: Brazil VC Weekly Report
+on:
+  schedule:
+    - cron: '0 16 * * 5'  # Every Friday at 4:00 PM UTC
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install requests beautifulsoup4 openai anthropic
+    
+    - name: Run Brazil VC Report Generator
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: python scripts/generate_report.py
+    
+    - name: Commit and push report
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add reports/
+        git commit -m "Weekly Brazil VC Report - $(date +'%Y-%m-%d')" || exit 0
+        git push
