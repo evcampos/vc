@@ -1,0 +1,62 @@
+name: Organize Emails
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:  # Allow manual triggers
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no changes)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      max_messages:
+        description: 'Maximum messages to process'
+        required: false
+        default: '100'
+
+jobs:
+  organize-emails:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Setup credentials
+      env:
+        GMAIL_CREDENTIALS: ${{ secrets.GMAIL_CREDENTIALS }}
+        GMAIL_TOKEN: ${{ secrets.GMAIL_TOKEN }}
+      run: |
+        echo "$GMAIL_CREDENTIALS" > credentials.json
+        if [ -n "$GMAIL_TOKEN" ]; then
+          echo "$GMAIL_TOKEN" > token.pickle
+        fi
+
+    - name: Organize Emails
+      run: |
+        cd scripts
+        if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          python organize_emails.py --dry-run --max=${{ github.event.inputs.max_messages || '100' }}
+        else
+          python organize_emails.py --max=${{ github.event.inputs.max_messages || '100' }}
+        fi
+
+    - name: Save token
+      if: success()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        if [ -f token.pickle ]; then
+          echo "Token file updated, consider saving it as GMAIL_TOKEN secret"
+        fi
